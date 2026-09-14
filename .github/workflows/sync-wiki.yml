@@ -1,0 +1,28 @@
+# Synchronize this repository with the project wiki 
+name: "sync-wikis"
+on:
+  workflow_dispatch:
+  # uncomment once PAT token is set for checkout action below
+  # push:
+  #   branches:
+  #     - main
+
+jobs:
+  sync-wikis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # change to PAT with repo & workflow permission
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Needed to prevent "remote: fatal: did not receive expected object 16a4c..." error
+          fetch-depth: 0
+      - name: Add wiki repo and push changes
+        # Note: `master` is the default branch for GitHub wikis
+        run: |
+          git config --global user.email "wikibot@yourdomain.com"
+          git config --global user.name "Wiki Template Bot"
+          git remote add upstream https://github.com/mhatzl/project-repo-template.wiki.git
+          git fetch upstream
+          git merge --allow-unrelated-histories --strategy-option=ours upstream/master
+          git push --force upstream main:master
