@@ -1,73 +1,137 @@
-# GitHub Wiki Template
+<p align="center">
+  <img alt="Aurora Browser" src="https://shieldcn.dev/header/gradient.svg?title=Aurora+Browser&subtitle=A+custom+open-source+web+browser+built+on+the+Ladybird+LibWeb+engine.&mode=dark&image=https%3A%2F%2Fi.ibb.co%2FtjLpHmP%2Fjay-bhadreshwara-zw-Il-z0-QRz-Y-unsplash.jpg&overlay=0.85" />
+</p>
 
-Repository template to manage a GitHub wiki that is synchronized with a GitHub project.\
-This wiki is synchronized with the [project-repo-template](https://github.com/mhatzl/project-repo-template).
+<p align="center">
+    <a href="https://github.com//Draftiermovie66/Aurora-Browser/actions/workflows/release.yml">
+        <img src="https://shieldcn.dev/badge/Build-Passing-success.svg?logo=githubactions" alt="Build">
+    </a>
+</p>
 
-The structure is loosely related to the [arc42 documentation](https://docs.arc42.org/home/).\
-To create system views, you should take a look at [C4](https://c4model.com/), and the related [Structurizr DSL](https://structurizr.com/).
+---
 
-This template is tailored to GitHub repositories, but the core concepts work for any project using a version control system.
+## Architecture
 
-**Steps to adapt this template.**
+```
+Aurora Browser
+├── engine/                    # Ladybird fork build system
+│   ├── build.sh              # Main build script (clone + brand + build)
+│   ├── brand.sh              # Apply Aurora branding to Ladybird source
+│   ├── package.sh            # Package built binaries for distribution
+│   ├── sign.sh               # Code signing (osslsigncode / signtool)
+│   ├── checksums.sh          # SHA256 checksum generation
+│   └── newtab/               # Custom new-tab page
+│       └── index.html
+├── extension/                # Legacy React new-tab (deprecated, kept for reference)
+├── packages/                 # Legacy packaging (deprecated)
+├── installer/                # Legacy native installer (deprecated)
+├── scripts/build/            # Build orchestrator
+│   └── build.sh
+├── VERSION                   # Single source of truth: 3.0.0
+├── LICENSE                   # MIT
+└── README.md
+```
+---
 
-1. Add the wiki repository of your project repository as additional remote (checkout the [sync-wiki action](/.github/workflows/sync-wiki.yml) for more information)
-1. Change the link in [sync-wiki action](/.github/workflows/sync-wiki.yml) to point to your remote project wiki
-1. Adapt the Definition of Done in the [pull request template](/.github/pull_request_template.md)
-1. Optional: Adapt the license to be in sync with the license of your project
-1. Adapt the existing markdown pages (see [template placeholders](#template-placeholders) for more details)
+## Building from Source
 
-## Wiki Pages
+### Prerequisites
 
-GitHub wiki only considers files, and ignores any hierarchy set via folders.
-This enforces that every filename must be unique in the entire wiki.
+| Platform | Requirements |
+|----------|-------------|
+| Linux | Clang 18+, CMake 3.25+, Ninja, Qt6, Rust, nasm, 30GB+ disk |
+| macOS | Xcode CLI tools, Homebrew (cmake, ninja, qt, llvm) |
+| Windows | WSL2 with Ubuntu 24.04+ (native Windows not yet supported) |
 
-This template is structured in a way to group related files, and enforce an order to first show more important pages on the wiki.
+### Build
 
-## Template Placeholders
+```bash
+git clone --recursive https://github.com/Draftiermovie66/Aurora-Browser
+cd Aurora-Browser
 
-In this template, many sections include placeholder text to provide some guidance of what the section should be about.
-These placeholders are inside `{{ }}` blocks.
+# Linux
+VERSION=3.0.0 bash engine/build.sh
 
-Some sections also include example content that is given inside `[[ ]]` blocks.
+# macOS
+VERSION=3.0.0 bash engine/build.sh
 
-## Synchronize Repository and Wiki
+# Windows (inside WSL2)
+VERSION=3.0.0 bash engine/build.sh
+```
+---
 
-Every GitHub wiki has its own git repository, with the link to it shown on the sidebar of the wiki.
-This setup allows edits directly in the wiki section of a project, but makes it hard to encourage external contributions, because the common PR workflow is not available.\
-Therefore, this template should be placed in its own repository, and synchronize changes to the internal repository of the project wiki.
-Since the wiki is shown in the project repository, issues should still be handled in the project repository, because users would expect this.
-To enforce this, the *issue* tab is deactivated in this template. More precisely, every feature except PRs was disabled, to make it clear that everything except PRs should be handled in the project repository.
+### Build Steps
 
-## GitHub Actions
+1. **Clone** — Downloads Ladybird source (`git clone --depth 1`)
+2. **Brand** — Applies Aurora Browser name, icons, defaults
+3. **Build** — Compiles LibWeb + LibJS + UI (30-120 minutes)
+4. **Package** — Creates distributable directory
 
-This template contains the following GitHub actions:
+---
 
-- `sync_wiki` ... Automatically pushes changes to the wiki repository of the associated project
+## Code Signing
 
-## GitHub Issue/PR Labels
+Aurora Browser uses [osslsigncode](https://github.com/mtrojnar/osslsigncode) for cross-platform code signing and [SignPath Foundation](https://signpath.org) (free for open-source projects).
 
-Repositories created by GitHub templates do not adopt the issue/PR labels set in the template.
-Instead, each one must be copied manually, which is unfortunate, but must only be done once.
+```bash
+# Set signing credentials
+export AURORA_SIGN_CERT=/path/to/certificate.pfx
+export AURORA_SIGN_PASS=your-password
 
-**Below are the [labels](https://github.com/mhatzl/wiki-repo-template/labels) defined in the wiki template:**
+# Sign all binaries
+VERSION=3.0.0 bash engine/sign.sh build VERSION
+```
 
-- `blocked` ... Marks this PR that it is blocked by another issue/PR (Color: `#F83A55`)
-- `declined` ... This PR was declined (Color: `#ffffff`)
-- `waiting-on-assignee` ... PR author or reviewer is awaiting response from assignee (Color: `#FEF2C0`)
-- `waiting-on-author` ... Assignee or reviewer is awaiting response from PR author (Color: `#463F12`)
-- `waiting-on-reviewer` ... Author or assignee is awaiting response from reviewer (Color: `#E6A2AE`)
+---
 
-## GitHub Settings
+### SmartScreen Reputation
 
-Repository settings are not adopted from templates, and must be set manually.
-Below are the recommended settings that work well with this wiki template.
+Windows SmartScreen builds reputation organically after code signing. To expedite:
 
-**General Settings:**
+1. Sign all releases with a consistent certificate (SignPath Foundation is free for OSS)
+2. Always timestamp signatures (RFC 3161)
+3. Publish `checksums-SHA256.txt` with every release
+4. If falsely flagged, submit at https://www.microsoft.com/en-us/wdsi/filesubmission
 
-- **Disable** all features to only allow pull requests
-- Only allow squash merging for pull requests
-- Automatically delete head branches
+---
 
-# License
+## Engine: LibWeb (Ladybird)
 
-MIT Licensed
+Aurora Browser is built on [LibWeb](https://github.com/LadybirdBrowser/ladybird), the rendering engine from the Ladybird Browser project.
+
+- **License**: BSD-2-Clause (very permissive)
+- **Language**: C++23 + Rust
+- **Web Standards**: HTML, CSS (Flexbox/Grid), JavaScript (ES2024+), WebGL, SVG, HTTP/3
+- **Process Model**: Multi-process sandboxed (one process per tab)
+- **No dependencies** on Chromium, Firefox, or WebKit
+
+### What works
+- Most websites (Gmail, GitHub, YouTube, ChatGPT, Wikipedia)
+- CSS Flexbox, Grid, modern layouts
+- JavaScript (ES2024+, WASM)
+- HTTP/2, HTTP/3, TLS 1.3
+- Basic WebGL
+
+---
+
+### What doesn't (yet)
+- Browser extensions
+- WebRTC
+- WebGPU
+- Advanced media codecs
+- Full DevTools parity
+
+---
+
+## License
+
+- **Browser**: MIT License
+- **Engine (LibWeb)**: BSD-2-Clause License (Ladybird Browser Initiative)
+
+---
+
+## Credits
+
+- [Ladybird Browser Initiative](https://ladybird.org) — LibWeb engine
+- [Andreas Kling](https://github.com/awesomekling) — Ladybird creator
+- Aurora Browser is not affiliated with the Ladybird Browser Initiative
